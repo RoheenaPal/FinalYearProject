@@ -1,0 +1,58 @@
+/* PublicationsList.css */
+.publications-list {
+    padding: 20px;
+    flex-grow: 1;
+}
+
+.publications-header {
+    display: grid;
+    grid-template-columns: 1fr 100px 50px;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 2px solid #e0e0e0;
+    font-weight: bold;
+    color: #555;
+}
+
+.header-title,
+.header-cited-by,
+.header-year {
+    font-size: 14px;
+    color: #666;
+}
+
+.publication-item {
+    display: grid;
+    grid-template-columns: 1fr 100px 50px;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 15px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.publication-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.publication-authors {
+    font-size: 13px;
+    color: #777;
+    margin-top: 4px;
+}
+
+.publication-source {
+    font-size: 13px;
+    color: #666;
+    margin-top: 2px;
+}
+
+.cited-count,
+.publication-year {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+}
