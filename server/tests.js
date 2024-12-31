@@ -68,7 +68,7 @@ async function calculateSelfCitations(link, authors) {
         const citingAuthors = await page.evaluate(() => {
             const authorsList = [];
             document
-                .querySelectorAll("div.paper-detail-content-card[data-test-id='cited-by'] span[data-test-id='author-list'] a span")
+                .querySelectorAll("div.paper-detail-content-card[data-test-id='cited-by'] span[data-test-id='author-list']")
                 .forEach((el) => {
                     authorsList.push(el.innerText.trim());
                 });
@@ -95,8 +95,8 @@ async function calculateSelfCitations(link, authors) {
 
 // Example Usage
 (async () => {
-    const publicationLink =
-        'https://www.semanticscholar.org/search?q=A%20complete%20review%20of%20computational%20methods%20for%20human%20and%20HIV-1%20protein%20interaction%20prediction&sort=relevance';
+    const name = "Frequent itemset mining using FP-tree: a CLA-based approach and its extended application in biodiversity data"
+    const publicationLink = `https://www.semanticscholar.org/search?q=${name}`
     const authors = []; // Replace with actual authors
 
     const selfCitations = await calculateSelfCitations(publicationLink, authors);
