@@ -16,8 +16,12 @@ function App() {
         const fetchPublications = async () => {
             try {
                 const response = await axios.get('http://localhost:5000/api/publications');
+                // response.map((res, index) => (
+                //     console.log(res)
+                // ))
                 if (response && response.data) {
                     setPublications(response.data);
+                    console.log(response.data)
                 } else {
                     setError("No data returned from the API.");
                 }
