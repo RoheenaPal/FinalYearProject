@@ -15,10 +15,11 @@ function App() {
     useEffect(() => {
         const fetchPublications = async () => {
             try {
-                const response = await axios.get('http://localhost:5000/api/publications');
+                var response = await axios.get('http://localhost:5000/api/publications');
                 // response.map((res, index) => (
                 //     console.log(res)
                 // ))
+                // response = await axios.get('http://localhost:5000/api/self-citations');
                 if (response && response.data) {
                     setPublications(response.data);
                     console.log(response.data)

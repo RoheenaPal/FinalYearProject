@@ -3,6 +3,102 @@ const router = express.Router();
 const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
+const puppeteer = require('puppeteer');
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function calculateSelfCitations(publicationTitle) {
+    const link = `https://www.semanticscholar.org/search?q=${publicationTitle}`;
+    var authors = [];
+    if (!link) return 0;
+
+    let browser;
+    try {
+        console.log(`Scraping data from: ${link}`);
+
+        // Launch Puppeteer
+        browser = await puppeteer.launch({
+            headless: false,
+            args: ['--no-sandbox', '--disable-setuid-sandbox'], // Recommended for Puppeteer on some environments
+        });
+        const page = await browser.newPage();
+
+        // Set a user agent and headers
+        await page.setUserAgent(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+        );
+        await page.setExtraHTTPHeaders({
+            'Accept-Language': 'en-US,en;q=0.9',
+        });
+
+        await page.goto(link, {
+            waitUntil: 'networkidle2', // Wait for all network requests to finish
+            timeout: 60000,
+        });
+
+        // Wait for citing info to load
+        await page.waitForSelector('div[data-test-id="total-citations-stat"] a', {
+            visible: true,
+            timeout: 30000,
+        });
+
+        // Get citing link
+        const citingLink = await page.evaluate(() => {
+            const linkElement = document.querySelector(
+                "div[data-test-id='total-citations-stat'] a"
+            );
+            return linkElement ? linkElement.href.trim() : null;
+        });
+
+        if (!citingLink) {
+            console.error('Citing link not found.');
+            return 0;
+        }
+
+        console.log(`Citing link found: ${citingLink}`);
+
+        // Navigate to the citing page
+        await page.goto(citingLink, {
+            waitUntil: 'networkidle2',
+            timeout: 600000,
+        });
+
+        // Wait for the citing authors section to load
+        await page.waitForSelector("div.paper-detail-content-card[data-test-id='cited-by'] span[data-test-id='author-list'] a span", {
+            visible: true,
+            timeout: 300000,
+        });
+
+        // Extract citing authors
+        const citingAuthors = await page.evaluate(() => {
+            const authorsList = [];
+            document
+                .querySelectorAll("div.paper-detail-content-card[data-test-id='cited-by'] span[data-test-id='author-list']")
+                .forEach((el) => {
+                    authorsList.push(el.innerText.trim());
+                });
+            return authorsList;
+        });
+
+        console.log(`Citing authors extracted: ${citingAuthors}`);
+
+        // Count self-citations
+        const selfCitationsCount = citingAuthors.filter((author) =>
+            authors.includes(author)
+        ).length;
+
+        console.log(`Self-citations found: ${selfCitationsCount}`);
+        return selfCitationsCount;
+    } catch (error) {
+        console.error(`Error fetching data from ${link}:`, error);
+        return 0;
+    } finally {
+        // Ensure the browser is closed
+        if (browser) await browser.close();
+    }
+}
 
 // API endpoint for publications
 router.get('/api/publications', (req, res) => {
@@ -11,103 +107,12 @@ router.get('/api/publications', (req, res) => {
     fs.createReadStream(path.join(__dirname, '../data/scopus.csv'))
         .pipe(csv())
         .on('data', (data) => results.push(data))
-        .on('end', () => {
+        .on('end', async () => {
+            for (var result of results) {
+                result['self-citation'] = await calculateSelfCitations(result['Title']);
+            }
             res.json(results);
         });
 });
 
 module.exports = router;
-
-// const express = require('express');
-// const router = express.Router();
-// const fs = require('fs');
-// const path = require('path');
-// const puppeteer = require('puppeteer');
-
-// // Load CSV parsing library
-// const csv = require('csv-parser');
-
-// const csvFilePath = path.join(__dirname, '../data/scopus.csv');
-
-// const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// // Function to calculate self-citations using Puppeteer
-// async function calculateSelfCitations(link, authors) {
-//     if (!link) return 0;
-
-//     let browser;
-//     try {
-//         // Launch Puppeteer
-//         browser = await puppeteer.launch({ headless: true });
-//         const page = await browser.newPage();
-
-//         console.log(`Visiting ${link}`);
-//         await page.goto(link, { waitUntil: 'networkidle2', timeout: 0 });
-
-//         // Extract citing authors
-//         const citingAuthors = await page.evaluate(() => {
-//             const authorsList = [];
-//             // Update the selector to match the citing authors on the page
-//             document.querySelectorAll('.citing-author-class').forEach((el) => {
-//                 authorsList.push(el.innerText.trim());
-//             });
-//             return authorsList;
-//         });
-
-//         console.log(`Citing authors: ${citingAuthors}`);
-
-//         // Count self-citations
-//         const selfCitationsCount = citingAuthors.filter((author) =>
-//             authors.includes(author)
-//         ).length;
-
-//         console.log(`Self-citations: ${selfCitationsCount}`);
-//         return selfCitationsCount;
-//     } catch (error) {
-//         console.error(`Error scraping ${link}: ${error.message}`);
-//         return 0;
-//     } finally {
-//         if (browser) await browser.close();
-//     }
-// }
-
-// // Function to process the CSV file and calculate self-citations
-// async function processPublications() {
-//     const publications = [];
-//     return new Promise((resolve, reject) => {
-//         fs.createReadStream(csvFilePath)
-//             .pipe(csv())
-//             .on('data', async (row) => {
-//                 const authors = row["﻿\"Authors\""].split(','); // Assuming authors are comma-separated
-//                 await delay(2000); // Delay to avoid rate limiting
-//                 const selfCitations = await calculateSelfCitations(row.Link, authors);
-
-//                 publications.push({
-//                     title: row.Title,
-//                     citedBy: parseInt(row['Cited by'], 10) || 0,
-//                     year: parseInt(row.Year, 10) || 0,
-//                     selfCitations: selfCitations,
-//                 });
-//             })
-//             .on('end', () => {
-//                 resolve(publications);
-//             })
-//             .on('error', (err) => {
-//                 reject(err);
-//             });
-//     });
-// }
-
-// // Define API endpoint
-// router.get('/api/publications', async (req, res) => {
-//     try {
-//         const publications = await processPublications();
-//         res.json(publications);
-//     } catch (error) {
-//         console.error('Error processing publications:', error.message);
-//         res.status(500).json({ error: 'Failed to process publications' });
-//     }
-// });
-
-// module.exports = router;
-
